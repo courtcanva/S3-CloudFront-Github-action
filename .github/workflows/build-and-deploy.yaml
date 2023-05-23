@@ -1,0 +1,47 @@
+---
+name: Node.js CI
+
+on:
+  push:
+    branches:
+      - master
+jobs:
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    env:
+      BUCKET: http://demo-github-actions.s3-website-ap-southeast-2.amazonaws.com
+      DIST: build
+      REGION: ap-southeast-2
+      DIST_ID: E2HNHGU4ZEXMFB
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    
+    - name: Configure AWS Credentials
+      uses: aws-aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secret.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secret.AWS_SECRET_ACCESS_KEY}}
+        aws-region: ${{ env.REGION }}
+
+    - name: Intall Dependencies
+      run: |
+        node --version 
+        npm ci --production
+      
+    - name: Build Static Website
+      run: npm run build
+
+    - name: Copy files to the production web with the AWS CLI
+      run: |
+        asw s3 sync --delete ${{ env.DIST }} s3://${{ env.BUCKET }}
+
+    - name: Copy files to the production web with the AWS CLI
+      run: |
+        aws cloudfront create-invalidation \
+          --distribution-id ${{ env.DIST_ID }} \
+          --path "/*"
+
+      
